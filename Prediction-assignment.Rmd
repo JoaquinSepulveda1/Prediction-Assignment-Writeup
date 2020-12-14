@@ -1,0 +1,84 @@
+---
+title: "Course Project - Practical Machine Learning"
+author: "Joaquin"
+date: "12/13/2020"
+output: html_document
+---
+
+### Prediction Assignment Writeup
+
+```{r,include=FALSE}
+library(knitr)
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(rattle)
+library(randomForest)
+library(corrplot)
+library(e1071)
+library(gbm)
+set.seed(121)
+```
+
+Read the train dataset
+
+```{r}
+setwd("~/Desktop/cp4")
+train<-read.csv("pml-training.csv")
+head(train)
+dim(train)
+```
+
+Remove NA´s and blank values 
+```{r}
+indColToRemove <- which(colSums(is.na(train) |train=="")>0.9*dim(train)[1]) 
+trainclean<- train[,-indColToRemove]
+trainclean <- trainclean[,-c(1:7)]
+dim(trainclean)
+head(trainclean)
+```
+
+Now we partition de trainclean data set in a training and a test set:
+```{r}
+training.samples <- trainclean$classe %>%
+        createDataPartition(p = 0.7, list = FALSE)
+
+
+trainset <- trainclean[training.samples, ]
+
+testset<- trainclean[-training.samples, ]
+dim(trainset)
+dim(testset)
+
+```
+Correlation analysis before modeling
+
+```{r}
+corMatrix <- cor(trainset[, -53])
+corrplot(corMatrix, order = "FPC", method = "color", type = "lower", 
+         tl.cex = 0.8, tl.col = rgb(0, 0, 0))
+```
+Prediction Modelo Bulding: Random Forest
+```{r}
+set.seed(123)
+controlRF <- trainControl(method="cv", number=3, verboseIter=FALSE)
+modFitRandForest <- train(classe ~ ., data=trainset, method="rf",
+                          trControl=controlRF)
+modFitRandForest$finalModel
+
+```
+Prediction on testclean dataset
+
+```{r}
+predictRandForest <- predict(modFitRandForest, newdata=testset)
+confMatRandForest <- confusionMatrix(predictRandForest,as.factor(testset$classe))
+confMatRandForest
+```
+
+
+Finally we used the model to predict the class in the test set:
+```{r}
+testing<-read.csv("pml-testing.csv")
+predictTEST <- predict(modFitRandForest, newdata=testing)
+predictTEST
+```
